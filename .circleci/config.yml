@@ -99,6 +99,12 @@ step-library:
           else
             echo "MOBILE_METRICS_TOKEN not provided"
           fi
+  - &pod-lint
+      run:
+        name: Lint podspecs
+        command: |
+            find . -path '*.podspec' -exec perl -pi -e 's/.+\.social_media_url.+//' {} \;
+            pod lib lint MapboxCoreNavigation.podspec
 
 jobs:
   pod-job:
@@ -138,8 +144,7 @@ jobs:
       - when:
           condition: << parameters.lint >>
           steps:
-            - run: find . -path '*.podspec' -exec perl -pi -e 's/.+\.social_media_url.+//' {} \;
-            - run: pod lib lint MapboxCoreNavigation.podspec
+            - *pod-lint
       - *save-cache-podmaster
       - *save-cache-cocoapods
 
@@ -161,6 +166,9 @@ jobs:
         type: boolean
         default: false
       delete_private_deps:
+        type: boolean
+        default: false
+      lint:
         type: boolean
         default: false
     macos:
@@ -197,6 +205,10 @@ jobs:
       - run:
           name: MapboxNavigation
           command: xcodebuild -sdk iphonesimulator -destination 'platform=iOS Simulator,OS=<< parameters.iOS >>,name=<< parameters.device >>' -project MapboxNavigation.xcodeproj -scheme MapboxNavigation clean build <<# parameters.test >>test <</ parameters.test >> <<# parameters.codecoverage >>-enableCodeCoverage YES<</ parameters.codecoverage >> 
+      - when:
+          condition: << parameters.lint >>
+          steps:
+            - *pod-lint
       - when:
           condition: << parameters.codecoverage >>
           steps:
@@ -242,11 +254,13 @@ workflows:
           iOS: "14.0"
           test: false
           device: "iPhone 8 Plus"
+          lint: true
       - build-job:
           name: "Xcode_11.5_iOS_13.5"
           xcode: "11.5.0"
           iOS: "13.5"
           device: "iPhone 8 Plus"
+          lint: true
       - build-job:
           name: "Xcode_11.4.1_iOS_12.2"
           xcode: "11.4.1"
